@@ -11,6 +11,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import com.example.screen_navigation.ui.navargs.AppNavArgs
 import com.example.screen_navigation.ui.theme.ScreennavigationTheme
 import com.example.screen_navigation.ui.theme.screens.MainNavGraph
 
@@ -21,7 +22,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             ScreennavigationTheme {
 
-            MainNavGraph()
+                AppNavArgs()
 
                 }
             }
