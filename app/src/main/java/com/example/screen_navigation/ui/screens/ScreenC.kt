@@ -13,39 +13,74 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavController
 
+/**
+ * ScreenC - Final screen demonstrating popUpTo navigation behavior.
+ *
+ * KEY CONCEPTS:
+ *
+ * 1. popUpTo NAVIGATION:
+ *    - When navigating from C back to A, we use popUpTo
+ *    - This clears intermediate screens from the back stack
+ *    - Prevents the user from having a long back stack (A→B→C→A→B→C...)
+ *
+ * 2. inclusive = true:
+ *    - When used with popUpTo, removes the target destination too
+ *    - Creates a "fresh start" at Screen A
+ *    - Without inclusive, you'd have two Screen A's in the stack
+ *
+ * BACK STACK BEHAVIOR:
+ * ┌─────────────────────────────────────────────────────────────────────┐
+ * │                                                                     │
+ * │  Before navigation (on Screen C):    After popUpTo with inclusive: │
+ * │  ┌──────────────────┐                ┌──────────────────┐          │
+ * │  │    Screen C      │ ◄── Current    │    Screen A      │ ◄── New  │
+ * │  ├──────────────────┤                └──────────────────┘          │
+ * │  │    Screen B      │                                              │
+ * │  ├──────────────────┤                Fresh start! Only Screen A    │
+ * │  │    Screen A      │                in the back stack.            │
+ * │  └──────────────────┘                                              │
+ * │                                                                     │
+ * └─────────────────────────────────────────────────────────────────────┘
+ *
+ * WITHOUT popUpTo:
+ * - Stack would grow: A → B → C → A → B → C → A...
+ * - Back button would go through all screens
+ *
+ * WITH popUpTo + inclusive:
+ * - Stack stays clean: just A
+ * - Back button exits the app (expected behavior)
+ *
+ * @param onNavigate Callback for navigation. In MainNavGraph, this navigates
+ *                   to Screen A with popUpTo to clear the back stack.
+ */
 @Composable
-
-fun ScreenC (navController: NavController)
-{
-    Column (
+fun ScreenC(onNavigate: () -> Unit = {}) {
+    Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
-
-
     ) {
-        Text (
+        // Screen identifier
+        Text(
             text = "Screen C",
             fontSize = 33.sp
         )
 
         Spacer(modifier = Modifier.height(30.dp))
 
-        Button(
-            onClick = {navController.navigate("A")
-            {
-                popUpTo ("A")
-                {
-                    inclusive = true
-
-                }
-            }}
-        ) {
-            Text("Go to screen A")
+        // Navigation button - triggers popUpTo navigation in NavGraph
+        Button(onClick = { onNavigate() }) {
+            Text("Go to Screen A")
         }
     }
+}
 
-
+/**
+ * Preview for ScreenC.
+ */
+@Preview(showBackground = true)
+@Composable
+fun ScreenCPreview() {
+    ScreenC()
 }

@@ -1,33 +1,69 @@
-# Jetpack Compose Navigation with Arguments
+# Jetpack Compose Navigation Guide
 
-> A comprehensive guide to implementing navigation and passing data between screens in Jetpack Compose.
+> A comprehensive guide to implementing navigation in Jetpack Compose - from basic screen-to-screen navigation to passing data with arguments.
 
 ---
 
 ## Table of Contents
 
 1. [Overview](#overview)
-2. [Architecture Diagram](#architecture-diagram)
+2. [Project Structure](#project-structure)
 3. [Core Concepts](#core-concepts)
-4. [Implementation Guide](#implementation-guide)
-5. [Code Breakdown](#code-breakdown)
-6. [Navigation Flow](#navigation-flow)
-7. [Best Practices](#best-practices)
-8. [Common Patterns](#common-patterns)
+4. [Part 1: Basic Navigation](#part-1-basic-navigation-screens-folder)
+5. [Part 2: Navigation with Arguments](#part-2-navigation-with-arguments-navargs-folder)
+6. [Type-Safe Routing](#type-safe-routing)
+7. [State Management](#state-management)
+8. [Navigation Flow Diagrams](#navigation-flow-diagrams)
+9. [Best Practices](#best-practices)
+10. [Common Patterns](#common-patterns)
 
 ---
 
 ## Overview
 
-This project demonstrates **Jetpack Compose Navigation** with **Navigation Arguments** - a pattern for navigating between screens while passing data. The implementation uses the `navigation-compose` library to create a type-safe, declarative navigation system.
+This project demonstrates **Jetpack Compose Navigation** through two implementations:
+
+1. **Basic Navigation** (`screens/`) - Simple screen-to-screen navigation with `popUpTo`
+2. **Navigation with Arguments** (`navargs/`) - Passing data between screens
+
+Both implementations use the `navigation-compose` library with **type-safe routing** using sealed classes.
 
 ### Key Features Implemented
 
 - ✅ NavController for navigation management
 - ✅ NavHost for hosting navigation graph
-- ✅ Route-based navigation with arguments
-- ✅ Type-safe argument passing between screens
+- ✅ Type-safe routing with sealed classes (no string literals!)
+- ✅ Callback pattern for screen navigation (decoupled architecture)
+- ✅ Navigation arguments for passing data
+- ✅ `popUpTo` for back stack management
 - ✅ State management with `remember` and `mutableStateOf`
+
+---
+
+## Project Structure
+
+```
+app/src/main/java/com/example/screen_navigation/
+│
+├── MainActivity.kt                    # Entry point - sets up theme
+│
+└── ui/
+    ├── screens/                       # BASIC NAVIGATION (no arguments)
+    │   ├── NavGraph.kt               # Navigation graph with Route sealed class
+    │   ├── ScreenA.kt                # First screen → navigates to B
+    │   ├── ScreenB.kt                # Second screen → navigates to C
+    │   └── ScreenC.kt                # Third screen → navigates to A (with popUpTo)
+    │
+    ├── navargs/                       # NAVIGATION WITH ARGUMENTS
+    │   ├── NavArgsGraph.kt           # Navigation graph with argument routes
+    │   ├── HomeScreen.kt             # Input screen (TextField + state)
+    │   └── ProfileScreen.kt          # Display screen (receives arguments)
+    │
+    └── theme/                         # Material 3 theming
+        ├── Color.kt
+        ├── Theme.kt
+        └── Type.kt
+```
 
 ---
 
@@ -40,8 +76,9 @@ This project demonstrates **Jetpack Compose Navigation** with **Navigation Argum
 │                           MainActivity                               │
 │  ┌───────────────────────────────────────────────────────────────┐  │
 │  │                    ScreennavigationTheme                       │  │
+│  │                                                                │  │
 │  │  ┌─────────────────────────────────────────────────────────┐  │  │
-│  │  │                      AppNavArgs()                        │  │  │
+│  │  │              NavGraph (screens/ OR navargs/)             │  │  │
 │  │  │  ┌────────────────────────────────────────────────────┐ │  │  │
 │  │  │  │                   NavController                     │ │  │  │
 │  │  │  │         (manages navigation state)                  │ │  │  │
@@ -51,11 +88,6 @@ This project demonstrates **Jetpack Compose Navigation** with **Navigation Argum
 │  │  │  ┌────────────────────────────────────────────────────┐ │  │  │
 │  │  │  │                     NavHost                         │ │  │  │
 │  │  │  │            (hosts composable screens)               │ │  │  │
-│  │  │  │  ┌─────────────────┐    ┌─────────────────────┐    │ │  │  │
-│  │  │  │  │   HomeScreen    │───►│   ProfileScreen     │    │ │  │  │
-│  │  │  │  │  route: "Home"  │    │ route: "profile/    │    │ │  │  │
-│  │  │  │  │                 │    │   {name}/{score}"   │    │ │  │  │
-│  │  │  │  └─────────────────┘    └─────────────────────┘    │ │  │  │
 │  │  │  └────────────────────────────────────────────────────┘ │  │  │
 │  │  └─────────────────────────────────────────────────────────┘  │  │
 │  └───────────────────────────────────────────────────────────────┘  │
@@ -130,7 +162,7 @@ The **NavHost** is a composable that:
 ```kotlin
 NavHost(
     navController = navController,
-    startDestination = "Home"
+    startDestination = Route.Home.route  // Type-safe!
 ) {
     // Screen definitions go here
 }
@@ -142,13 +174,13 @@ NavHost(
 
 Routes are **string-based paths** that identify destinations. They can include:
 
-- **Static routes:** `"Home"`, `"Settings"`
+- **Static routes:** `"home"`, `"settings"`
 - **Dynamic routes with arguments:** `"profile/{name}/{score}"`
 
 ```
 Route Pattern Examples:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Static Route     │  "Home"
+  Static Route     │  "home"
   ─────────────────┼─────────────────────────────
   With 1 Argument  │  "profile/{userId}"
   ─────────────────┼─────────────────────────────
@@ -160,27 +192,251 @@ Route Pattern Examples:
 
 ---
 
-### 4. Navigation Arguments
+### 4. Callback Pattern for Navigation
 
-Arguments allow **passing data** between screens via the route.
-
-#### Defining Arguments
+Instead of passing `NavController` directly to screens, we use **callbacks**:
 
 ```kotlin
-composable(
-    route = "profile/{name}/{score}",
-    arguments = listOf(
-        navArgument("name") { type = NavType.StringType },
-        navArgument("score") { type = NavType.StringType }
-    )
-) { backStackEntry ->
-    // Access arguments
-    val name = backStackEntry.arguments?.getString("name")
-    val score = backStackEntry.arguments?.getString("score")
+// ✅ GOOD: Callback pattern (decoupled)
+@Composable
+fun ScreenA(onNavigate: () -> Unit = {}) {
+    Button(onClick = { onNavigate() }) {
+        Text("Next")
+    }
+}
+
+// ❌ AVOID: Direct NavController (tight coupling)
+@Composable
+fun ScreenA(navController: NavController) {
+    Button(onClick = { navController.navigate("B") }) {
+        Text("Next")
+    }
 }
 ```
 
-#### Supported NavType Values
+**Benefits of Callback Pattern:**
+
+- Screen doesn't know about navigation implementation
+- Enables preview without NavController
+- Easier to test in isolation
+- Navigation logic centralized in NavGraph
+
+---
+
+## Part 1: Basic Navigation (screens/ folder)
+
+This implementation demonstrates simple screen-to-screen navigation with `popUpTo` for back stack management.
+
+### Navigation Flow
+
+```
+┌────────────────────────────────────────────────────────────────────────────┐
+│                     BASIC NAVIGATION FLOW (A → B → C → A)                  │
+└────────────────────────────────────────────────────────────────────────────┘
+
+    ┌──────────┐  navigate()  ┌──────────┐  navigate()  ┌──────────┐
+    │ Screen A │ ───────────► │ Screen B │ ───────────► │ Screen C │
+    └──────────┘              └──────────┘              └──────────┘
+         ▲                                                    │
+         │                                                    │
+         └────────────────────────────────────────────────────┘
+                        navigate() with popUpTo
+                        (clears back stack)
+```
+
+### Type-Safe Route Definition (NavGraph.kt)
+
+```kotlin
+/**
+ * Sealed class for type-safe routes.
+ * - Compile-time safety (typos caught by compiler)
+ * - IDE autocomplete support
+ * - Single source of truth for all routes
+ */
+sealed class Route(val route: String) {
+    data object ScreenA : Route(route = "screen_a")
+    data object ScreenB : Route(route = "screen_b")
+    data object ScreenC : Route(route = "screen_c")
+}
+```
+
+### Navigation Graph Setup
+
+```kotlin
+@Composable
+fun MainNavGraph() {
+    val navController = rememberNavController()
+
+    NavHost(
+        navController = navController,
+        startDestination = Route.ScreenA.route  // Type-safe!
+    ) {
+        // Screen A → B
+        composable(route = Route.ScreenA.route) {
+            ScreenA(
+                onNavigate = {
+                    navController.navigate(Route.ScreenB.route)
+                }
+            )
+        }
+
+        // Screen B → C
+        composable(route = Route.ScreenB.route) {
+            ScreenB(
+                onNavigate = {
+                    navController.navigate(Route.ScreenC.route)
+                }
+            )
+        }
+
+        // Screen C → A (with popUpTo to clear stack)
+        composable(route = Route.ScreenC.route) {
+            ScreenC(
+                onNavigate = {
+                    navController.navigate(Route.ScreenA.route) {
+                        popUpTo(Route.ScreenA.route) {
+                            inclusive = true
+                        }
+                    }
+                }
+            )
+        }
+    }
+}
+```
+
+### Understanding popUpTo
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         popUpTo BEHAVIOR                             │
+└─────────────────────────────────────────────────────────────────────┘
+
+  WITHOUT popUpTo:                    WITH popUpTo + inclusive:
+  ─────────────────────────────       ─────────────────────────────
+
+  Back stack keeps growing:           Back stack stays clean:
+
+  ┌──────────┐                        ┌──────────┐
+  │ Screen A │ (4th)                  │ Screen A │ (fresh start)
+  ├──────────┤                        └──────────┘
+  │ Screen C │
+  ├──────────┤                        User presses back → exits app
+  │ Screen B │                        (expected behavior!)
+  ├──────────┤
+  │ Screen A │ (1st)
+  └──────────┘
+
+  User presses back → goes through
+  ALL screens (bad UX!)
+```
+
+### Screen Composables (ScreenA, ScreenB, ScreenC)
+
+All screens follow the same pattern:
+
+```kotlin
+@Composable
+fun ScreenA(onNavigate: () -> Unit = {}) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(text = "Screen A", fontSize = 33.sp)
+
+        Spacer(modifier = Modifier.height(30.dp))
+
+        Button(onClick = { onNavigate() }) {
+            Text("Go to Screen B")
+        }
+    }
+}
+```
+
+**Key Points:**
+
+- `onNavigate: () -> Unit = {}` - Callback with default empty lambda
+- Default lambda enables Preview without navigation
+- Screen is completely decoupled from navigation logic
+
+---
+
+## Part 2: Navigation with Arguments (navargs/ folder)
+
+This implementation demonstrates passing data between screens using navigation arguments.
+
+### Type-Safe Route with Arguments
+
+```kotlin
+sealed class NavArgsRoute(val route: String) {
+
+    // Static route - no arguments
+    data object Home : NavArgsRoute(route = "home")
+
+    // Dynamic route with arguments
+    data object Profile : NavArgsRoute(route = "profile/{name}/{score}") {
+        // Argument keys as constants (prevents typos!)
+        const val ARG_NAME = "name"
+        const val ARG_SCORE = "score"
+
+        // Helper function to build route with actual values
+        fun createRoute(name: String, score: String): String {
+            return "profile/$name/$score"
+        }
+    }
+}
+```
+
+### Navigation Graph with Arguments
+
+```kotlin
+@Composable
+fun AppNavArgs(modifier: Modifier = Modifier) {
+    val navController = rememberNavController()
+
+    NavHost(
+        navController = navController,
+        startDestination = NavArgsRoute.Home.route
+    ) {
+        // Home Screen
+        composable(route = NavArgsRoute.Home.route) {
+            HomeScreen(
+                onNavigate = { name, score ->
+                    // Type-safe navigation with helper function
+                    navController.navigate(
+                        NavArgsRoute.Profile.createRoute(name, score)
+                    )
+                }
+            )
+        }
+
+        // Profile Screen with arguments
+        composable(
+            route = NavArgsRoute.Profile.route,
+            arguments = listOf(
+                navArgument(NavArgsRoute.Profile.ARG_NAME) {
+                    type = NavType.StringType
+                },
+                navArgument(NavArgsRoute.Profile.ARG_SCORE) {
+                    type = NavType.StringType
+                }
+            )
+        ) { backStackEntry ->
+            ProfileScreen(
+                name = backStackEntry.arguments?.getString(
+                    NavArgsRoute.Profile.ARG_NAME
+                ),
+                score = backStackEntry.arguments?.getString(
+                    NavArgsRoute.Profile.ARG_SCORE
+                )
+            )
+        }
+    }
+}
+```
+
+### Supported NavType Values
 
 | NavType              | Kotlin Type | Example      |
 | -------------------- | ----------- | ------------ |
@@ -192,158 +448,63 @@ composable(
 
 ---
 
-## Implementation Guide
+## Type-Safe Routing
 
-### Step-by-Step Setup
+### Why Use Sealed Classes for Routes?
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    IMPLEMENTATION STEPS                          │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│                   STRING LITERALS vs SEALED CLASS                    │
+└─────────────────────────────────────────────────────────────────────┘
 
-  STEP 1                    STEP 2                    STEP 3
-  ──────────────────────    ──────────────────────    ──────────────────────
-  Create NavController      Setup NavHost             Define Composable
-                                                      Destinations
-       │                         │                         │
-       ▼                         ▼                         ▼
-  ┌──────────────┐         ┌──────────────┐         ┌──────────────┐
-  │ val nav =    │         │ NavHost(     │         │ composable(  │
-  │ rememberNav  │    ───► │   navController,│  ───► │   route,     │
-  │ Controller() │         │   startDest  │         │   arguments  │
-  │              │         │ )            │         │ ) { }        │
-  └──────────────┘         └──────────────┘         └──────────────┘
+  ❌ STRING LITERALS (error-prone):
+  ─────────────────────────────────
+  navController.navigate("profil/John/95")  // Typo: "profil"
+                                            // Compiles but crashes at runtime!
+
+  ✅ SEALED CLASS (type-safe):
+  ─────────────────────────────────
+  navController.navigate(Route.Profile.createRoute("John", "95"))
+                         // Typo would be caught by compiler!
 ```
+
+### Benefits of Sealed Class Routes
+
+| Benefit                    | Description                                 |
+| -------------------------- | ------------------------------------------- |
+| **Compile-time safety**    | Typos caught by compiler, not at runtime    |
+| **IDE autocomplete**       | `Route.` shows all available routes         |
+| **Single source of truth** | All routes defined in one place             |
+| **Easy refactoring**       | Rename route, all usages update             |
+| **Argument constants**     | `ARG_NAME` instead of `"name"` strings      |
+| **Helper functions**       | `createRoute()` for building dynamic routes |
 
 ---
 
-## Code Breakdown
+## State Management
 
-### File Structure
-
-```
-app/src/main/java/com/example/screen_navigation/
-│
-├── MainActivity.kt              # Entry point, sets up theme
-│
-└── ui/
-    └── navargs/
-        ├── NavArgsGraph.kt      # Navigation graph definition
-        ├── HomeScreen.kt        # Source screen with input
-        └── ProfileScreen.kt     # Destination screen with data display
-```
-
----
-
-### MainActivity.kt
-
-The entry point that sets up the app theme and launches the navigation graph.
-
-```kotlin
-class MainActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        setContent {
-            ScreennavigationTheme {
-                AppNavArgs()  // Launches the navigation graph
-            }
-        }
-    }
-}
-```
-
-**Key Points:**
-
-- `enableEdgeToEdge()` - Enables edge-to-edge display
-- `setContent {}` - Defines the composable UI
-- `ScreennavigationTheme` - Applies Material 3 theming
-- `AppNavArgs()` - The root navigation composable
-
----
-
-### NavArgsGraph.kt (AppNavArgs)
-
-The navigation graph that defines all screens and their routes.
+### remember + mutableStateOf Pattern
 
 ```kotlin
 @Composable
-fun AppNavArgs(modifier: Modifier = Modifier) {
-    // STEP 1: Create NavController
-    val navController = rememberNavController()
-
-    // STEP 2: Define NavHost with starting destination
-    NavHost(navController = navController, startDestination = "Home") {
-
-        // STEP 3: Define HomeScreen destination
-        composable("Home") {
-            HomeScreen(onNavigate = { name, score ->
-                // Navigate with arguments embedded in route
-                navController.navigate("profile/$name/$score")
-            })
-        }
-
-        // STEP 4: Define ProfileScreen with arguments
-        composable(
-            route = "profile/{name}/{score}",
-            arguments = listOf(
-                navArgument("name") { type = NavType.StringType },
-                navArgument("score") { type = NavType.StringType }
-            )
-        ) {
-            ProfileScreen(
-                name = it.arguments?.getString("name"),
-                score = it.arguments?.getString("score")
-            )
-        }
-    }
-}
-```
-
----
-
-### HomeScreen.kt
-
-The source screen with user input and navigation trigger.
-
-```kotlin
-@Composable
-fun HomeScreen(onNavigate: (name: String, score: String) -> Unit = { _, _ -> }) {
-    // State management using remember + mutableStateOf
+fun HomeScreen(onNavigate: (String, String) -> Unit = { _, _ -> }) {
+    // State that survives recomposition
     var name by remember { mutableStateOf("") }
     var score by remember { mutableStateOf("") }
 
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(text = "Home Screen", fontSize = 30.sp)
-
-        TextField(
-            value = name,
-            onValueChange = { name = it },
-            label = { Text("Name..") }
-        )
-
-        TextField(
-            value = score,
-            onValueChange = { score = it },
-            label = { Text("Score...") }
-        )
-
-        Button(onClick = { onNavigate(name, score) }) {
-            Text("Profile Screen")
-        }
-    }
+    // When name or score changes, only affected UI recomposes
+    TextField(
+        value = name,
+        onValueChange = { name = it }  // Updates state → triggers recomposition
+    )
 }
 ```
 
-**State Management Pattern:**
+### State Flow Diagram
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│                    STATE HOISTING PATTERN                       │
+│                    STATE FLOW IN HOMESCREEN                     │
 └────────────────────────────────────────────────────────────────┘
 
   ┌─────────────────────────────────────────────────────────────┐
@@ -371,42 +532,20 @@ fun HomeScreen(onNavigate: (name: String, score: String) -> Unit = { _, _ -> }) 
   │                              │                               │
   └──────────────────────────────┼───────────────────────────────┘
                                  │
-                                 ▼  Callback to parent (NavArgsGraph)
-                     ┌───────────────────────┐
-                     │ navController.navigate│
-                     │ ("profile/$name/$score")│
-                     └───────────────────────┘
+                                 ▼  Callback to parent (NavGraph)
+                     ┌─────────────────────────────┐
+                     │ navController.navigate(     │
+                     │   Route.Profile.createRoute │
+                     │     (name, score)           │
+                     │ )                           │
+                     └─────────────────────────────┘
 ```
 
 ---
 
-### ProfileScreen.kt
+## Navigation Flow Diagrams
 
-The destination screen that receives and displays the arguments.
-
-```kotlin
-@Composable
-fun ProfileScreen(name: String?, score: String?) {
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(text = "Profile Screen", fontSize = 30.sp)
-
-        Text(text = "Name: $name", fontWeight = FontWeight.Bold, fontSize = 20.sp)
-        Text(text = "Score: $score", fontWeight = FontWeight.Bold, fontSize = 20.sp)
-    }
-}
-```
-
-**Note:** Arguments are nullable (`String?`) because they come from the navigation back stack entry.
-
----
-
-## Navigation Flow
-
-### Complete Data Flow Diagram
+### Complete Data Flow (Navigation with Arguments)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -436,9 +575,9 @@ fun ProfileScreen(name: String?, score: String?) {
                              │
                              ▼
               ┌──────────────────────────────┐
-              │  navController.navigate(     │
-              │    "profile/John/95"         │
-              │  )                           │
+              │  Route.Profile.createRoute(  │
+              │    "John", "95"              │
+              │  ) → "profile/John/95"       │
               └──────────────┬───────────────┘
                              │
                              ▼
@@ -447,8 +586,8 @@ fun ProfileScreen(name: String?, score: String?) {
               │  "profile/{name}/{score}"    │
               │                              │
               │  Extracted:                  │
-              │    name  = "John"            │
-              │    score = "95"              │
+              │    ARG_NAME  = "John"        │
+              │    ARG_SCORE = "95"          │
               └──────────────┬───────────────┘
                              │
                              ▼
@@ -493,31 +632,37 @@ fun ProfileScreen(name: String?, score: String?) {
 
 ## Best Practices
 
-### 1. Use Callback Patterns for Navigation
+### 1. Use Sealed Classes for Type-Safe Routes
 
 ```kotlin
-// ✅ Good: Pass navigation as callback
-@Composable
-fun HomeScreen(onNavigate: (String, String) -> Unit) {
-    Button(onClick = { onNavigate(name, score) }) { }
+// ✅ BEST: Sealed class with helper functions
+sealed class Route(val route: String) {
+    data object Home : Route(route = "home")
+
+    data object Profile : Route(route = "profile/{name}/{score}") {
+        const val ARG_NAME = "name"
+        const val ARG_SCORE = "score"
+
+        fun createRoute(name: String, score: String) = "profile/$name/$score"
+    }
 }
 
-// ❌ Avoid: Passing NavController directly to screens
-@Composable
-fun HomeScreen(navController: NavController) {
-    // Tight coupling to navigation
-}
+// Usage: Route.Profile.createRoute("John", "95")
 ```
 
-### 2. Define Routes as Constants
+### 2. Use Callback Patterns for Navigation
 
 ```kotlin
-// ✅ Recommended: Centralized route definitions
-object Routes {
-    const val HOME = "home"
-    const val PROFILE = "profile/{name}/{score}"
+// ✅ GOOD: Pass navigation as callback (decoupled)
+@Composable
+fun ScreenA(onNavigate: () -> Unit = {}) {
+    Button(onClick = { onNavigate() }) { Text("Next") }
+}
 
-    fun profileWithArgs(name: String, score: String) = "profile/$name/$score"
+// ❌ AVOID: Passing NavController directly (tight coupling)
+@Composable
+fun ScreenA(navController: NavController) {
+    Button(onClick = { navController.navigate("B") }) { Text("Next") }
 }
 ```
 
@@ -526,16 +671,38 @@ object Routes {
 ```kotlin
 // ✅ Safe handling with Elvis operator
 ProfileScreen(
-    name = it.arguments?.getString("name") ?: "Unknown",
-    score = it.arguments?.getString("score") ?: "0"
+    name = backStackEntry.arguments?.getString(Route.Profile.ARG_NAME)
+        ?: "Unknown",
+    score = backStackEntry.arguments?.getString(Route.Profile.ARG_SCORE)
+        ?: "0"
 )
 ```
 
-### 4. Use Default Parameter Values
+### 4. Use Default Parameter Values for Previews
 
 ```kotlin
-// ✅ Allows preview and testing without navigation
-fun HomeScreen(onNavigate: (String, String) -> Unit = { _, _ -> })
+// ✅ Allows preview and testing without navigation setup
+@Composable
+fun HomeScreen(onNavigate: (String, String) -> Unit = { _, _ -> }) {
+    // Preview works because default lambda does nothing
+}
+
+@Preview
+@Composable
+fun HomeScreenPreview() {
+    HomeScreen()  // Uses default empty lambda
+}
+```
+
+### 5. Use popUpTo for Circular Navigation
+
+```kotlin
+// ✅ Prevents infinite back stack growth
+navController.navigate(Route.ScreenA.route) {
+    popUpTo(Route.ScreenA.route) {
+        inclusive = true  // Remove existing ScreenA before adding new one
+    }
+}
 ```
 
 ---
@@ -545,10 +712,18 @@ fun HomeScreen(onNavigate: (String, String) -> Unit = { _, _ -> })
 ### Optional Arguments
 
 ```kotlin
+data object Search : Route(route = "search?query={query}") {
+    const val ARG_QUERY = "query"
+
+    fun createRoute(query: String? = null) =
+        if (query != null) "search?query=$query" else "search"
+}
+
+// In NavHost:
 composable(
-    route = "search?query={query}",
+    route = Route.Search.route,
     arguments = listOf(
-        navArgument("query") {
+        navArgument(Route.Search.ARG_QUERY) {
             type = NavType.StringType
             defaultValue = ""
             nullable = true
@@ -561,9 +736,11 @@ composable(
 
 ```kotlin
 composable(
-    route = "profile/{userId}",
+    route = Route.Profile.route,
     deepLinks = listOf(
-        navDeepLink { uriPattern = "https://example.com/profile/{userId}" }
+        navDeepLink {
+            uriPattern = "https://example.com/profile/{name}/{score}"
+        }
     )
 ) { }
 ```
@@ -571,29 +748,70 @@ composable(
 ### Nested Navigation
 
 ```kotlin
-NavHost(navController, startDestination = "main") {
-    navigation(startDestination = "home", route = "main") {
-        composable("home") { HomeScreen() }
-        composable("settings") { SettingsScreen() }
+sealed class MainRoute(val route: String) {
+    data object Main : MainRoute("main")
+    data object Auth : MainRoute("auth")
+}
+
+NavHost(navController, startDestination = MainRoute.Main.route) {
+    navigation(startDestination = Route.Home.route, route = MainRoute.Main.route) {
+        composable(Route.Home.route) { HomeScreen() }
+        composable(Route.Settings.route) { SettingsScreen() }
     }
-    navigation(startDestination = "login", route = "auth") {
-        composable("login") { LoginScreen() }
-        composable("register") { RegisterScreen() }
+    navigation(startDestination = Route.Login.route, route = MainRoute.Auth.route) {
+        composable(Route.Login.route) { LoginScreen() }
+        composable(Route.Register.route) { RegisterScreen() }
     }
 }
 ```
 
 ---
 
-## Summary
+## Quick Reference
 
-| Concept           | Purpose                    | Key Function                               |
-| ----------------- | -------------------------- | ------------------------------------------ |
-| **NavController** | Manages navigation state   | `rememberNavController()`                  |
-| **NavHost**       | Hosts navigation graph     | `NavHost(navController, startDestination)` |
-| **composable()**  | Defines screen destination | `composable(route, arguments)`             |
-| **navArgument**   | Defines route parameter    | `navArgument(name) { type = NavType.X }`   |
-| **navigate()**    | Triggers navigation        | `navController.navigate("route/arg")`      |
+### Navigation Setup Checklist
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    NAVIGATION SETUP CHECKLIST                    │
+└─────────────────────────────────────────────────────────────────┘
+
+  □ Step 1: Define sealed class for routes
+  □ Step 2: Create NavController with rememberNavController()
+  □ Step 3: Setup NavHost with startDestination
+  □ Step 4: Define composable() for each screen
+  □ Step 5: Use callbacks (onNavigate) in screens
+  □ Step 6: Add arguments with navArgument() if needed
+  □ Step 7: Use popUpTo for circular navigation flows
+```
+
+### Summary Table
+
+| Concept                | Purpose                     | Example                                                  |
+| ---------------------- | --------------------------- | -------------------------------------------------------- |
+| **Sealed Class Route** | Type-safe route definitions | `sealed class Route(val route: String)`                  |
+| **NavController**      | Manages navigation state    | `rememberNavController()`                                |
+| **NavHost**            | Hosts navigation graph      | `NavHost(navController, startDestination)`               |
+| **composable()**       | Defines screen destination  | `composable(Route.Home.route) { }`                       |
+| **navArgument**        | Defines route parameter     | `navArgument(ARG_NAME) { type = NavType.StringType }`    |
+| **navigate()**         | Triggers navigation         | `navController.navigate(Route.Profile.createRoute(...))` |
+| **popUpTo**            | Clears back stack           | `popUpTo(Route.Home.route) { inclusive = true }`         |
+| **Callback Pattern**   | Decouples screens from nav  | `onNavigate: () -> Unit = {}`                            |
+
+---
+
+## Glossary
+
+| Term               | Definition                                             |
+| ------------------ | ------------------------------------------------------ |
+| **Back Stack**     | Stack of screens the user has navigated through        |
+| **Composable**     | A function that defines UI in Jetpack Compose          |
+| **NavController**  | Object that manages app navigation                     |
+| **NavHost**        | Container that displays current navigation destination |
+| **Route**          | String path that identifies a navigation destination   |
+| **Recomposition**  | Process of re-executing composables when state changes |
+| **State Hoisting** | Moving state up to a common ancestor composable        |
+| **popUpTo**        | Navigation option to remove screens from back stack    |
 
 ---
 
@@ -601,6 +819,7 @@ NavHost(navController, startDestination = "main") {
 
 - [Official Navigation Compose Guide](https://developer.android.com/jetpack/compose/navigation)
 - [Navigation Arguments Documentation](https://developer.android.com/guide/navigation/navigation-pass-data)
+- [State and Jetpack Compose](https://developer.android.com/jetpack/compose/state)
 - [Material 3 Design](https://m3.material.io/)
 
 ---

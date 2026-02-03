@@ -22,7 +22,10 @@ class MainActivity : ComponentActivity() {
         setContent {
             ScreennavigationTheme {
 
-                AppNavArgs()
+               AppNavArgs()
+                // MainNavGraph()
+
+
 
                 }
             }
