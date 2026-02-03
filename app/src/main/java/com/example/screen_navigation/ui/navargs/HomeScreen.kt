@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -51,8 +52,12 @@ fun HomeScreen(onNavigate: (name: String, score: String) -> Unit = { _, _ -> }) 
     // ══════════════════════════════════════════════════════════════════════
     // Using 'by' delegate with remember + mutableStateOf for reactive state
     // When these values change, the Composable automatically recomposes
-    var name by remember { mutableStateOf("") }
-    var score by remember { mutableStateOf("") }
+    //
+    // Best practice:
+    // - prefer rememberSaveable for simple UI state that should survive
+    //   configuration changes (like rotation) and process recreation.
+    var name by rememberSaveable { mutableStateOf("") }
+    var score by rememberSaveable { mutableStateOf("") }
 
     // ══════════════════════════════════════════════════════════════════════
     // UI LAYOUT

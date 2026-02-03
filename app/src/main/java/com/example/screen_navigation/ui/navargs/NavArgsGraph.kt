@@ -1,5 +1,6 @@
 package com.example.screen_navigation.ui.navargs
 
+import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavType
@@ -25,7 +26,15 @@ sealed class NavArgsRoute(val route: String) {
         
         // Helper function to build route with actual values
         fun createRoute(name: String, score: String): String {
-            return "profile/$name/$score"
+            // IMPORTANT:
+            // Route path segments must be URL-safe.
+            // If name has spaces (e.g., "John Doe") or symbols ("/", "?", "&"),
+            // raw string interpolation can break routing.
+            //
+            // Encode on the way out, decode on the way in.
+            val safeName = Uri.encode(name)
+            val safeScore = Uri.encode(score)
+            return "profile/$safeName/$safeScore"
         }
     }
 }
@@ -61,8 +70,13 @@ fun AppNavArgs(modifier: Modifier = Modifier) {
             )
         ) { backStackEntry ->
             ProfileScreen(
-                name = backStackEntry.arguments?.getString(NavArgsRoute.Profile.ARG_NAME),
-                score = backStackEntry.arguments?.getString(NavArgsRoute.Profile.ARG_SCORE)
+                // Decode because we encoded when building the route.
+                name = backStackEntry.arguments
+                    ?.getString(NavArgsRoute.Profile.ARG_NAME)
+                    ?.let(Uri::decode),
+                score = backStackEntry.arguments
+                    ?.getString(NavArgsRoute.Profile.ARG_SCORE)
+                    ?.let(Uri::decode)
             )
         }
     }
