@@ -1,4 +1,4 @@
-package com.example.screen_navigation.ui.nestednav
+package com.example.screen_navigation.ui.nestednav.navigation
 
 class HomeNavGraph {
 }
