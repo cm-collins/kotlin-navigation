@@ -10,14 +10,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.screen_navigation.ui.nestednav.navigation.AppRoutes
 
 @Composable
-fun LoginScreen (onNavigate: () -> Unit = {})
-{
-    Column (
+fun LoginScreen(onNavigate: (route: String) -> Unit) {
+    Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
@@ -31,10 +30,26 @@ fun LoginScreen (onNavigate: () -> Unit = {})
 
         Spacer(modifier = Modifier.height(40.dp))
 
-        Button (
-            onClick = onNavigate
+        Button(
+            onClick = { onNavigate(AppRoutes.LoginScreen.route) }
         ) {
-            Text("Login")
+            Text("login")
+        }
+
+        Spacer(modifier = Modifier.height(40.dp))
+
+        Button(
+            onClick = { onNavigate(AppRoutes.ResetPinScreen.route) }
+        ) {
+            Text("reset pin ")
+        }
+
+        Spacer(modifier = Modifier.height(40.dp))
+
+        Button(
+            onClick = { onNavigate(AppRoutes.SignupScreen.route) }
+        ) {
+            Text("signup")
         }
     }
 
@@ -42,9 +57,8 @@ fun LoginScreen (onNavigate: () -> Unit = {})
 
 //Signup Screen
 @Composable
-fun SignupScreen (onNavigate: () -> Unit = {})
-{
-    Column (
+fun SignupScreen(onNavigate: (route: String) -> Unit) {
+    Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
@@ -58,8 +72,8 @@ fun SignupScreen (onNavigate: () -> Unit = {})
 
         Spacer(modifier = Modifier.height(40.dp))
 
-        Button (
-            onClick = onNavigate
+        Button(
+            onClick = { onNavigate(AppRoutes.SignupScreen.route) }
         ) {
             Text("Sign Up")
         }
@@ -69,9 +83,8 @@ fun SignupScreen (onNavigate: () -> Unit = {})
 
 //reset pinscreen
 @Composable
-fun ResetPinScreen (onNavigate: () -> Unit = {})
-{
-    Column (
+fun ResetPinScreen(onNavigate: (route: String) -> Unit) {
+    Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
@@ -85,8 +98,8 @@ fun ResetPinScreen (onNavigate: () -> Unit = {})
 
         Spacer(modifier = Modifier.height(40.dp))
 
-        Button (
-            onClick = onNavigate
+        Button(
+            onClick = { onNavigate(AppRoutes.ResetPinScreen.route) }
         ) {
             Text("Reset Pin")
         }
@@ -95,28 +108,3 @@ fun ResetPinScreen (onNavigate: () -> Unit = {})
 }
 
 
-
-//login screen previews
-@Preview(showBackground = true)
-@Composable
-fun LoginScreenPreview() {
-    LoginScreen()
-}
-//Signup Screen preview
-
-@Preview(showBackground = true)
-@Composable
-fun SignupScreenPreview ()
-{
-    SignupScreen()
-
-}
-
-//reset pin screen preview
-@Preview(showBackground = true)
-@Composable
-fun ResetPinScreenPreview ()
-{
-    ResetPinScreen()
-
-}

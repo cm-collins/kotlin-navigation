@@ -13,11 +13,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.screen_navigation.ui.nestednav.navigation.AppRoutes
 
 @Composable
-fun HomeScreen (onNavigate: () -> Unit = {})
-{
-    Column (
+fun HomeScreen(onNavigate: (destination: AppRoutes) -> Unit = {}) {
+    Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
@@ -31,20 +31,20 @@ fun HomeScreen (onNavigate: () -> Unit = {})
 
         Spacer(modifier = Modifier.height(40.dp))
 
-        Button (
-            onClick = onNavigate
+        Button(
+            onClick = { onNavigate(AppRoutes.CheckoutScreen) }
         ) {
             Text("checkout")
         }
 
-        Button (
-            onClick = onNavigate
+        Button(
+            onClick = { onNavigate(AppRoutes.ProfileScreen) }
         ) {
             Text("profile")
         }
 
-        Button (
-            onClick = onNavigate
+        Button(
+            onClick = { onNavigate(AppRoutes.LogoutScreen) }
         ) {
             Text("logout")
         }
@@ -54,12 +54,17 @@ fun HomeScreen (onNavigate: () -> Unit = {})
 
 }
 
+@Preview(showBackground = true)
+@Composable
+fun HomeNestedScreenPreview() {
+    HomeScreen()
+}
+
 //profile screen
 
 @Composable
-fun ProfileScreen (onNavigate: () -> Unit = {})
-{
-    Column (
+fun ProfileScreen(onNavigate: () -> Unit = {}) {
+    Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
@@ -73,7 +78,7 @@ fun ProfileScreen (onNavigate: () -> Unit = {})
 
         Spacer(modifier = Modifier.height(40.dp))
 
-        Button (
+        Button(
             onClick = onNavigate
         ) {
             Text("checkout")
@@ -85,9 +90,8 @@ fun ProfileScreen (onNavigate: () -> Unit = {})
 
 //checkout screen
 @Composable
-fun CheckoutScreen (onNavigate: () -> Unit = {})
-{
-    Column (
+fun CheckoutScreen(onNavigate: () -> Unit = {}) {
+    Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
@@ -101,7 +105,7 @@ fun CheckoutScreen (onNavigate: () -> Unit = {})
 
         Spacer(modifier = Modifier.height(40.dp))
 
-        Button (
+        Button(
             onClick = onNavigate
         ) {
             Text("Confirm")
@@ -110,11 +114,11 @@ fun CheckoutScreen (onNavigate: () -> Unit = {})
     }
 
 }
+
 //payment confirmation
 @Composable
-fun PaymentConfirmationScreen (onNavigate: () -> Unit = {})
-{
-    Column (
+fun ConfirmationScreen(onNavigate: () -> Unit = {}) {
+    Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
@@ -128,7 +132,7 @@ fun PaymentConfirmationScreen (onNavigate: () -> Unit = {})
 
         Spacer(modifier = Modifier.height(40.dp))
 
-        Button (
+        Button(
             onClick = onNavigate
         ) {
             Text("Home")
@@ -139,37 +143,28 @@ fun PaymentConfirmationScreen (onNavigate: () -> Unit = {})
 
 }
 
-
-
-
-@Preview(showBackground = true)
+//logout screen
 @Composable
-fun HomeScreenPreview() {
-    HomeScreen(onNavigate = {})
+fun LogoutScreen(onNavigate: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "Logout Screen",
+            fontSize = 30.sp
+        )
 
-}
-//profile screen
-@Preview(showBackground = true)
-@Composable
-fun ProfileScreenPreview ()
-{
-    ProfileScreen()
+        Spacer(modifier = Modifier.height(40.dp))
 
+        Button(
+            onClick = onNavigate
+        ) {
+            Text("Logout")
+        }
+    }
 }
-//checkout screen preview
-@Preview(showBackground = true)
-@Composable
-fun CheckoutScreenPreview ()
-{
-    CheckoutScreen()
 
-}
-//payment confirmation screen
-@Preview(showBackground = true)
-@Composable
-fun PaymentConfirmationScreenPreview ()
-{
-    PaymentConfirmationScreen()
 
-}
 

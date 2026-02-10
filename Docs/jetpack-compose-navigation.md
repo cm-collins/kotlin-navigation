@@ -11,20 +11,22 @@
 3. [Core Concepts](#core-concepts)
 4. [Part 1: Basic Navigation](#part-1-basic-navigation-screens-folder)
 5. [Part 2: Navigation with Arguments](#part-2-navigation-with-arguments-navargs-folder)
-6. [Type-Safe Routing](#type-safe-routing)
-7. [State Management](#state-management)
-8. [Navigation Flow Diagrams](#navigation-flow-diagrams)
-9. [Best Practices](#best-practices)
-10. [Common Patterns](#common-patterns)
+6. [Part 3: Multi-flow Navigation (Auth + Main)](#part-3-multi-flow-navigation-auth--main-nestednav-folder)
+7. [Type-Safe Routing](#type-safe-routing)
+8. [State Management](#state-management)
+9. [Navigation Flow Diagrams](#navigation-flow-diagrams)
+10. [Best Practices](#best-practices)
+11. [Common Patterns](#common-patterns)
 
 ---
 
 ## Overview
 
-This project demonstrates **Jetpack Compose Navigation** through two implementations:
+This project demonstrates **Jetpack Compose Navigation** through three implementations:
 
 1. **Basic Navigation** (`screens/`) - Simple screen-to-screen navigation with `popUpTo`
 2. **Navigation with Arguments** (`navargs/`) - Passing data between screens
+3. **Multi-flow Navigation** (`nestednav/`) - Auth flow + Main flow in one app graph
 
 Both implementations use the `navigation-compose` library with **type-safe routing** using sealed classes.
 
@@ -59,6 +61,14 @@ app/src/main/java/com/example/screen_navigation/
     │   ├── HomeScreen.kt             # Input screen (TextField + state)
     │   └── ProfileScreen.kt          # Display screen (receives arguments)
     │
+    ├── nestednav/                     # MULTI-FLOW NAVIGATION (Auth + Main)
+    │   ├── navigation/
+    │   │   ├── MainNav.kt            # MainAppNav NavHost (single graph)
+    │   │   └── NavRoutes.kt          # AppRoutes sealed class
+    │   └── screens/
+    │       ├── AuthScreen.kt         # Login / Signup / Reset PIN
+    │       └── HomeScreen.kt         # Home / Checkout / Confirmation / Logout (demo)
+    │
     └── theme/                         # Material 3 theming
         ├── Color.kt
         ├── Theme.kt
@@ -78,7 +88,7 @@ app/src/main/java/com/example/screen_navigation/
 │  │                    ScreennavigationTheme                       │  │
 │  │                                                                │  │
 │  │  ┌─────────────────────────────────────────────────────────┐  │  │
-│  │  │              NavGraph (screens/ OR navargs/)             │  │  │
+│  │  │        NavGraph (screens/ OR navargs/ OR nestednav/)     │  │  │
 │  │  │  ┌────────────────────────────────────────────────────┐ │  │  │
 │  │  │  │                   NavController                     │ │  │  │
 │  │  │  │         (manages navigation state)                  │ │  │  │
@@ -445,6 +455,103 @@ fun AppNavArgs(modifier: Modifier = Modifier) {
 | `NavType.LongType`   | Long        | `123456789L` |
 | `NavType.FloatType`  | Float       | `3.14f`      |
 | `NavType.BoolType`   | Boolean     | `true`       |
+
+---
+
+## Part 3: Multi-flow Navigation (Auth + Main) (nestednav/ folder)
+
+This implementation models a more realistic app: **an authentication flow + a main app flow**.
+
+### What “multi-flow” means
+
+Instead of just A → B → C, you often have flows like:
+- **Auth flow**: Login, Signup, Reset PIN
+- **Main flow**: Home, Profile, Checkout, Confirmation, Logout
+
+In your code, this is implemented in `ui/nestednav/navigation/MainNav.kt` via `MainAppNav()`.
+
+### Routes (type-safe)
+
+Routes are centralized in a sealed class:
+
+```kotlin
+sealed class AppRoutes(val route: String) {
+    data object HomeScreen : AppRoutes(route = "Home")
+    data object CheckoutScreen : AppRoutes(route = "checkout")
+    data object ProfileScreen : AppRoutes(route = "profile")
+    data object ConfirmationScreen : AppRoutes(route = "confirmation")
+    data object LoginScreen : AppRoutes(route = "login")
+    data object SignupScreen : AppRoutes(route = "sign_up")
+    data object ResetPinScreen : AppRoutes(route = "reset_pin")
+    data object LogoutScreen : AppRoutes(route = "logout")
+}
+```
+
+### Navigation graph (single NavHost for the demo)
+
+`MainAppNav()` uses one `NavHost` with `startDestination = login`.
+
+Important best-practice detail that’s implemented:
+- **After login**, navigate to Home using `popUpTo(login) { inclusive = true }`
+  - prevents back-press from returning to Login
+- **After logout**, navigate to Login using `popUpTo(home) { inclusive = true }`
+  - prevents back-press from returning to Home/Profile/Checkout
+
+### Flow diagram
+
+```
+┌───────────────────────────────────────────────────────────────────────────┐
+│                           MULTI-FLOW NAVIGATION                           │
+└───────────────────────────────────────────────────────────────────────────┘
+
+AUTH FLOW                               MAIN FLOW
+─────────                               ─────────
+
+  login  ───────────────►  home  ───────►  checkout  ───────► confirmation
+    │                      │   │                            │
+    │                      │   └────────► profile ──────────┘
+    │                      │
+    │                      └────────► logout  ─────────────► login
+    │
+    ├────────► sign_up ───────────────► login
+    └────────► reset_pin ─────────────► login
+```
+
+### “Modern callback” for destination selection
+
+Your `nestednav` `HomeScreen` uses a more scalable callback:
+
+- Instead of `onNavigate()` (single action),
+- it uses `onNavigate(destination: AppRoutes)` (multiple actions).
+
+This keeps **NavController in the NavGraph** and keeps UI screens decoupled.
+
+### Recommended next step (true nested graphs)
+
+Right now, `nestednav` is “multi-flow” but still a **single NavHost**.
+In larger apps, you typically create **nested graphs**:
+
+```kotlin
+NavHost(navController, startDestination = "auth") {
+    navigation(startDestination = AppRoutes.LoginScreen.route, route = "auth") {
+        composable(AppRoutes.LoginScreen.route) { /* ... */ }
+        composable(AppRoutes.SignupScreen.route) { /* ... */ }
+        composable(AppRoutes.ResetPinScreen.route) { /* ... */ }
+    }
+    navigation(startDestination = AppRoutes.HomeScreen.route, route = "main") {
+        composable(AppRoutes.HomeScreen.route) { /* ... */ }
+        composable(AppRoutes.ProfileScreen.route) { /* ... */ }
+        composable(AppRoutes.CheckoutScreen.route) { /* ... */ }
+        composable(AppRoutes.ConfirmationScreen.route) { /* ... */ }
+        composable(AppRoutes.LogoutScreen.route) { /* ... */ }
+    }
+}
+```
+
+This makes it easier to:
+- keep Auth + Main flows separate
+- clear a whole flow using `popUpTo("auth")` / `popUpTo("main")`
+- scale to more features
 
 ---
 
