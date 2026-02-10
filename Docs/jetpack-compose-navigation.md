@@ -1,6 +1,6 @@
 # Jetpack Compose Navigation Guide
 
-> A comprehensive guide to implementing navigation in Jetpack Compose - from basic screen-to-screen navigation to passing data with arguments.
+> A comprehensive guide to implementing navigation in Jetpack Compose - from basic screen-to-screen navigation, to passing data with arguments, to nested navigation graphs.
 
 ---
 
@@ -11,7 +11,7 @@
 3. [Core Concepts](#core-concepts)
 4. [Part 1: Basic Navigation](#part-1-basic-navigation-screens-folder)
 5. [Part 2: Navigation with Arguments](#part-2-navigation-with-arguments-navargs-folder)
-6. [Part 3: Multi-flow Navigation (Auth + Main)](#part-3-multi-flow-navigation-auth--main-nestednav-folder)
+6. [Part 3: Nested Navigation Graphs](#part-3-nested-navigation-graphs-nestednav-folder)
 7. [Type-Safe Routing](#type-safe-routing)
 8. [State Management](#state-management)
 9. [Navigation Flow Diagrams](#navigation-flow-diagrams)
@@ -22,23 +22,25 @@
 
 ## Overview
 
-This project demonstrates **Jetpack Compose Navigation** through three implementations:
+This project demonstrates **Jetpack Compose Navigation** through three implementations, each building on the previous one:
 
 1. **Basic Navigation** (`screens/`) - Simple screen-to-screen navigation with `popUpTo`
-2. **Navigation with Arguments** (`navargs/`) - Passing data between screens
-3. **Multi-flow Navigation** (`nestednav/`) - Auth flow + Main flow in one app graph
+2. **Navigation with Arguments** (`navargs/`) - Passing data between screens via route parameters
+3. **Nested Navigation Graphs** (`nestednav/`) - Splitting an Auth flow and Main flow into separate sub-graphs using `NavGraphBuilder` extension functions
 
-Both implementations use the `navigation-compose` library with **type-safe routing** using sealed classes.
+All implementations use the `navigation-compose` library with **type-safe routing** using sealed classes.
 
 ### Key Features Implemented
 
-- ✅ NavController for navigation management
-- ✅ NavHost for hosting navigation graph
-- ✅ Type-safe routing with sealed classes (no string literals!)
-- ✅ Callback pattern for screen navigation (decoupled architecture)
-- ✅ Navigation arguments for passing data
-- ✅ `popUpTo` for back stack management
-- ✅ State management with `remember` and `mutableStateOf`
+- NavController for navigation management
+- NavHost for hosting navigation graph
+- Type-safe routing with sealed classes (no string literals!)
+- Callback pattern for screen navigation (decoupled architecture)
+- Navigation arguments for passing data
+- `popUpTo` + `launchSingleTop` for back stack management
+- Nested navigation graphs with `NavGraphBuilder` extension functions
+- Multi-destination callback pattern
+- State management with `remember` and `mutableStateOf`
 
 ---
 
@@ -46,98 +48,35 @@ Both implementations use the `navigation-compose` library with **type-safe routi
 
 ```
 app/src/main/java/com/example/screen_navigation/
-│
+|
 ├── MainActivity.kt                    # Entry point - sets up theme
-│
+|
 └── ui/
-    ├── screens/                       # BASIC NAVIGATION (no arguments)
-    │   ├── NavGraph.kt               # Navigation graph with Route sealed class
-    │   ├── ScreenA.kt                # First screen → navigates to B
-    │   ├── ScreenB.kt                # Second screen → navigates to C
-    │   └── ScreenC.kt                # Third screen → navigates to A (with popUpTo)
-    │
-    ├── navargs/                       # NAVIGATION WITH ARGUMENTS
-    │   ├── NavArgsGraph.kt           # Navigation graph with argument routes
-    │   ├── HomeScreen.kt             # Input screen (TextField + state)
-    │   └── ProfileScreen.kt          # Display screen (receives arguments)
-    │
-    ├── nestednav/                     # MULTI-FLOW NAVIGATION (Auth + Main)
-    │   ├── navigation/
-    │   │   ├── MainNav.kt            # MainAppNav NavHost (single graph)
-    │   │   └── NavRoutes.kt          # AppRoutes sealed class
-    │   └── screens/
-    │       ├── AuthScreen.kt         # Login / Signup / Reset PIN
-    │       └── HomeScreen.kt         # Home / Checkout / Confirmation / Logout (demo)
-    │
+    ├── screens/                       # PART 1 - BASIC NAVIGATION
+    |   ├── NavGraph.kt               # Navigation graph + Route sealed class
+    |   ├── ScreenA.kt                # First screen -> navigates to B
+    |   ├── ScreenB.kt                # Second screen -> navigates to C
+    |   └── ScreenC.kt                # Third screen -> navigates to A (popUpTo)
+    |
+    ├── navargs/                       # PART 2 - NAVIGATION WITH ARGUMENTS
+    |   ├── NavArgsGraph.kt           # NavHost with argument routes
+    |   ├── HomeScreen.kt             # Input screen (TextField + state)
+    |   └── ProfileScreen.kt          # Display screen (receives arguments)
+    |
+    ├── nestednav/                     # PART 3 - NESTED NAVIGATION GRAPHS
+    |   ├── navigation/
+    |   |   ├── NavRoutes.kt          # AppRoutes sealed class (screens + graph IDs)
+    |   |   ├── MainNav.kt            # MainAppNav: thin NavHost shell
+    |   |   ├── AuthNavGraph.kt       # NavGraphBuilder.authGraph() extension
+    |   |   └── HomeNavGraph.kt       # NavGraphBuilder.homeNavGraph() extension
+    |   └── screens/
+    |       ├── AuthScreen.kt         # Login / Signup / Reset PIN composables
+    |       └── HomeScreen.kt         # Home / Profile / Checkout / Confirm / Logout
+    |
     └── theme/                         # Material 3 theming
         ├── Color.kt
         ├── Theme.kt
         └── Type.kt
-```
-
----
-
-## Architecture Diagram
-
-### High-Level Navigation Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                           MainActivity                               │
-│  ┌───────────────────────────────────────────────────────────────┐  │
-│  │                    ScreennavigationTheme                       │  │
-│  │                                                                │  │
-│  │  ┌─────────────────────────────────────────────────────────┐  │  │
-│  │  │        NavGraph (screens/ OR navargs/ OR nestednav/)     │  │  │
-│  │  │  ┌────────────────────────────────────────────────────┐ │  │  │
-│  │  │  │                   NavController                     │ │  │  │
-│  │  │  │         (manages navigation state)                  │ │  │  │
-│  │  │  └────────────────────────────────────────────────────┘ │  │  │
-│  │  │                          │                               │  │  │
-│  │  │                          ▼                               │  │  │
-│  │  │  ┌────────────────────────────────────────────────────┐ │  │  │
-│  │  │  │                     NavHost                         │ │  │  │
-│  │  │  │            (hosts composable screens)               │ │  │  │
-│  │  │  └────────────────────────────────────────────────────┘ │  │  │
-│  │  └─────────────────────────────────────────────────────────┘  │  │
-│  └───────────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-### Component Relationship Diagram
-
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│                        NAVIGATION COMPONENTS                          │
-└──────────────────────────────────────────────────────────────────────┘
-
-     ┌─────────────────┐
-     │  NavController  │◄──────── Created with rememberNavController()
-     │                 │
-     │  • navigate()   │          Controls navigation between screens
-     │  • popBackStack │          Maintains back stack
-     │  • currentRoute │          Holds current destination info
-     └────────┬────────┘
-              │
-              │ passed to
-              ▼
-     ┌─────────────────┐
-     │    NavHost      │◄──────── Container for navigation graph
-     │                 │
-     │  • navController│          Defines all possible destinations
-     │  • startDest    │          Specifies starting screen
-     │  • builder {}   │          Contains composable() definitions
-     └────────┬────────┘
-              │
-              │ contains
-              ▼
-     ┌─────────────────┐
-     │  composable()   │◄──────── Defines individual screen destinations
-     │                 │
-     │  • route        │          URL-like path with optional args
-     │  • arguments    │          List of navArgument definitions
-     │  • content {}   │          Actual composable UI content
-     └─────────────────┘
 ```
 
 ---
@@ -157,7 +96,7 @@ The **NavController** is the central API for navigation in Compose. It:
 val navController = rememberNavController()
 ```
 
-> 💡 **Note:** Use `rememberNavController()` to create a NavController that survives recomposition.
+> Use `rememberNavController()` to create a NavController that survives recomposition.
 
 ---
 
@@ -172,7 +111,7 @@ The **NavHost** is a composable that:
 ```kotlin
 NavHost(
     navController = navController,
-    startDestination = Route.Home.route  // Type-safe!
+    startDestination = Route.Home.route
 ) {
     // Screen definitions go here
 }
@@ -182,21 +121,18 @@ NavHost(
 
 ### 3. Routes
 
-Routes are **string-based paths** that identify destinations. They can include:
-
-- **Static routes:** `"home"`, `"settings"`
-- **Dynamic routes with arguments:** `"profile/{name}/{score}"`
+Routes are **string-based paths** that identify destinations:
 
 ```
 Route Pattern Examples:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  Static Route     │  "home"
-  ─────────────────┼─────────────────────────────
-  With 1 Argument  │  "profile/{userId}"
-  ─────────────────┼─────────────────────────────
-  With 2 Arguments │  "profile/{name}/{score}"
-  ─────────────────┼─────────────────────────────
-  Optional Args    │  "search?query={query}"
+  Static Route     |  "home"
+  -----------------|-────────────────────────────-
+  With 1 Argument  |  "profile/{userId}"
+  -----------------|-────────────────────────────-
+  With 2 Arguments |  "profile/{name}/{score}"
+  -----------------|-────────────────────────────-
+  Optional Args    |  "search?query={query}"
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
@@ -207,27 +143,23 @@ Route Pattern Examples:
 Instead of passing `NavController` directly to screens, we use **callbacks**:
 
 ```kotlin
-// ✅ GOOD: Callback pattern (decoupled)
+// GOOD: Callback pattern (decoupled)
 @Composable
 fun ScreenA(onNavigate: () -> Unit = {}) {
-    Button(onClick = { onNavigate() }) {
-        Text("Next")
-    }
+    Button(onClick = { onNavigate() }) { Text("Next") }
 }
 
-// ❌ AVOID: Direct NavController (tight coupling)
+// AVOID: Direct NavController (tight coupling)
 @Composable
 fun ScreenA(navController: NavController) {
-    Button(onClick = { navController.navigate("B") }) {
-        Text("Next")
-    }
+    Button(onClick = { navController.navigate("B") }) { Text("Next") }
 }
 ```
 
 **Benefits of Callback Pattern:**
 
 - Screen doesn't know about navigation implementation
-- Enables preview without NavController
+- Enables `@Preview` without NavController
 - Easier to test in isolation
 - Navigation logic centralized in NavGraph
 
@@ -235,20 +167,20 @@ fun ScreenA(navController: NavController) {
 
 ## Part 1: Basic Navigation (screens/ folder)
 
-This implementation demonstrates simple screen-to-screen navigation with `popUpTo` for back stack management.
+Simple screen-to-screen navigation with `popUpTo` for back stack management.
 
 ### Navigation Flow
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────┐
-│                     BASIC NAVIGATION FLOW (A → B → C → A)                  │
+│                     BASIC NAVIGATION FLOW (A -> B -> C -> A)               │
 └────────────────────────────────────────────────────────────────────────────┘
 
     ┌──────────┐  navigate()  ┌──────────┐  navigate()  ┌──────────┐
-    │ Screen A │ ───────────► │ Screen B │ ───────────► │ Screen C │
+    │ Screen A │ -----------> │ Screen B │ -----------> │ Screen C │
     └──────────┘              └──────────┘              └──────────┘
-         ▲                                                    │
-         │                                                    │
+         ^                                                    |
+         |                                                    |
          └────────────────────────────────────────────────────┘
                         navigate() with popUpTo
                         (clears back stack)
@@ -257,61 +189,10 @@ This implementation demonstrates simple screen-to-screen navigation with `popUpT
 ### Type-Safe Route Definition (NavGraph.kt)
 
 ```kotlin
-/**
- * Sealed class for type-safe routes.
- * - Compile-time safety (typos caught by compiler)
- * - IDE autocomplete support
- * - Single source of truth for all routes
- */
 sealed class Route(val route: String) {
     data object ScreenA : Route(route = "screen_a")
     data object ScreenB : Route(route = "screen_b")
     data object ScreenC : Route(route = "screen_c")
-}
-```
-
-### Navigation Graph Setup
-
-```kotlin
-@Composable
-fun MainNavGraph() {
-    val navController = rememberNavController()
-
-    NavHost(
-        navController = navController,
-        startDestination = Route.ScreenA.route  // Type-safe!
-    ) {
-        // Screen A → B
-        composable(route = Route.ScreenA.route) {
-            ScreenA(
-                onNavigate = {
-                    navController.navigate(Route.ScreenB.route)
-                }
-            )
-        }
-
-        // Screen B → C
-        composable(route = Route.ScreenB.route) {
-            ScreenB(
-                onNavigate = {
-                    navController.navigate(Route.ScreenC.route)
-                }
-            )
-        }
-
-        // Screen C → A (with popUpTo to clear stack)
-        composable(route = Route.ScreenC.route) {
-            ScreenC(
-                onNavigate = {
-                    navController.navigate(Route.ScreenA.route) {
-                        popUpTo(Route.ScreenA.route) {
-                            inclusive = true
-                        }
-                    }
-                }
-            )
-        }
-    }
 }
 ```
 
@@ -331,116 +212,34 @@ fun MainNavGraph() {
   │ Screen A │ (4th)                  │ Screen A │ (fresh start)
   ├──────────┤                        └──────────┘
   │ Screen C │
-  ├──────────┤                        User presses back → exits app
+  ├──────────┤                        User presses back -> exits app
   │ Screen B │                        (expected behavior!)
   ├──────────┤
   │ Screen A │ (1st)
   └──────────┘
 
-  User presses back → goes through
+  User presses back -> goes through
   ALL screens (bad UX!)
 ```
-
-### Screen Composables (ScreenA, ScreenB, ScreenC)
-
-All screens follow the same pattern:
-
-```kotlin
-@Composable
-fun ScreenA(onNavigate: () -> Unit = {}) {
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(text = "Screen A", fontSize = 33.sp)
-
-        Spacer(modifier = Modifier.height(30.dp))
-
-        Button(onClick = { onNavigate() }) {
-            Text("Go to Screen B")
-        }
-    }
-}
-```
-
-**Key Points:**
-
-- `onNavigate: () -> Unit = {}` - Callback with default empty lambda
-- Default lambda enables Preview without navigation
-- Screen is completely decoupled from navigation logic
 
 ---
 
 ## Part 2: Navigation with Arguments (navargs/ folder)
 
-This implementation demonstrates passing data between screens using navigation arguments.
+Passing data between screens using navigation arguments.
 
 ### Type-Safe Route with Arguments
 
 ```kotlin
 sealed class NavArgsRoute(val route: String) {
-
-    // Static route - no arguments
     data object Home : NavArgsRoute(route = "home")
 
-    // Dynamic route with arguments
     data object Profile : NavArgsRoute(route = "profile/{name}/{score}") {
-        // Argument keys as constants (prevents typos!)
         const val ARG_NAME = "name"
         const val ARG_SCORE = "score"
 
-        // Helper function to build route with actual values
         fun createRoute(name: String, score: String): String {
             return "profile/$name/$score"
-        }
-    }
-}
-```
-
-### Navigation Graph with Arguments
-
-```kotlin
-@Composable
-fun AppNavArgs(modifier: Modifier = Modifier) {
-    val navController = rememberNavController()
-
-    NavHost(
-        navController = navController,
-        startDestination = NavArgsRoute.Home.route
-    ) {
-        // Home Screen
-        composable(route = NavArgsRoute.Home.route) {
-            HomeScreen(
-                onNavigate = { name, score ->
-                    // Type-safe navigation with helper function
-                    navController.navigate(
-                        NavArgsRoute.Profile.createRoute(name, score)
-                    )
-                }
-            )
-        }
-
-        // Profile Screen with arguments
-        composable(
-            route = NavArgsRoute.Profile.route,
-            arguments = listOf(
-                navArgument(NavArgsRoute.Profile.ARG_NAME) {
-                    type = NavType.StringType
-                },
-                navArgument(NavArgsRoute.Profile.ARG_SCORE) {
-                    type = NavType.StringType
-                }
-            )
-        ) { backStackEntry ->
-            ProfileScreen(
-                name = backStackEntry.arguments?.getString(
-                    NavArgsRoute.Profile.ARG_NAME
-                ),
-                score = backStackEntry.arguments?.getString(
-                    NavArgsRoute.Profile.ARG_SCORE
-                )
-            )
         }
     }
 }
@@ -458,24 +257,97 @@ fun AppNavArgs(modifier: Modifier = Modifier) {
 
 ---
 
-## Part 3: Multi-flow Navigation (Auth + Main) (nestednav/ folder)
+## Part 3: Nested Navigation Graphs (nestednav/ folder)
 
-This implementation models a more realistic app: **an authentication flow + a main app flow**.
+This is the most realistic pattern in the project. It models an app with separate **Auth** and **Main** flows, each defined in its own file using **extension functions on `NavGraphBuilder`**.
 
-### What “multi-flow” means
+---
 
-Instead of just A → B → C, you often have flows like:
-- **Auth flow**: Login, Signup, Reset PIN
-- **Main flow**: Home, Profile, Checkout, Confirmation, Logout
+### What is a Nested Navigation Graph?
 
-In your code, this is implemented in `ui/nestednav/navigation/MainNav.kt` via `MainAppNav()`.
+A nested graph groups related screens under a single "parent route". Think of it like folders on your computer -- instead of dumping all files in one place, you organize them:
 
-### Routes (type-safe)
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│                    FLAT GRAPH vs NESTED GRAPHS                            │
+└──────────────────────────────────────────────────────────────────────────┘
 
-Routes are centralized in a sealed class:
+  FLAT (all screens in one NavHost block):
+  ─────────────────────────────────────────
+  NavHost {
+      composable("login") { }
+      composable("signup") { }
+      composable("reset_pin") { }
+      composable("home") { }
+      composable("checkout") { }
+      composable("confirmation") { }
+      composable("profile") { }
+      composable("logout") { }        <-- 8 screens in one place = messy
+  }
+
+  NESTED (grouped by flow, in separate files):
+  ─────────────────────────────────────────────
+  NavHost(startDestination = "auth") {
+      authGraph(navController)         <-- login, signup, reset_pin
+      homeNavGraph(navController)      <-- home, checkout, profile, etc.
+  }
+```
+
+---
+
+### Why Use Nested Graphs?
+
+| Benefit                | Explanation                                                    |
+| ---------------------- | -------------------------------------------------------------- |
+| **Organization**       | Each flow in its own file -- easy to find and edit             |
+| **Scalability**        | Adding a new flow = adding a new file + one line in NavHost   |
+| **Back stack control** | `popUpTo("auth")` clears the entire auth group at once        |
+| **Team collaboration** | Different devs can work on different flows without conflicts   |
+| **Reusability**        | An auth graph can be reused in another app/module              |
+
+---
+
+### How It All Fits Together
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│                      NESTED GRAPH ARCHITECTURE                            │
+└──────────────────────────────────────────────────────────────────────────┘
+
+  ┌──────────────────────────────────────────────────────────────────────┐
+  │  MainActivity                                                        │
+  │  └── MainAppNav()     (MainNav.kt)                                   │
+  │       |                                                              │
+  │       v                                                              │
+  │  ┌──────────────────────────────────────────────────────────────┐    │
+  │  │  NavHost(startDestination = "auth")                          │    │
+  │  │  |                                                           │    │
+  │  │  ├── authGraph(navController)         (AuthNavGraph.kt)      │    │
+  │  │  │   └── navigation(route = "auth")                          │    │
+  │  │  │       ├── composable("login")      -> LoginScreen         │    │
+  │  │  │       ├── composable("sign_up")    -> SignupScreen        │    │
+  │  │  │       └── composable("reset_pin")  -> ResetPinScreen     │    │
+  │  │  │                                                           │    │
+  │  │  └── homeNavGraph(navController)      (HomeNavGraph.kt)      │    │
+  │  │      └── navigation(route = "main")                          │    │
+  │  │          ├── composable("Home")       -> HomeScreen          │    │
+  │  │          ├── composable("checkout")   -> CheckoutScreen      │    │
+  │  │          ├── composable("confirmation")-> ConfirmationScreen │    │
+  │  │          ├── composable("profile")    -> ProfileScreen       │    │
+  │  │          └── composable("logout")     -> LogoutScreen        │    │
+  │  └──────────────────────────────────────────────────────────────┘    │
+  └──────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### File-by-File Breakdown
+
+#### 1. NavRoutes.kt -- All Routes in One Place
 
 ```kotlin
 sealed class AppRoutes(val route: String) {
+    // Screen routes
     data object HomeScreen : AppRoutes(route = "Home")
     data object CheckoutScreen : AppRoutes(route = "checkout")
     data object ProfileScreen : AppRoutes(route = "profile")
@@ -484,74 +356,335 @@ sealed class AppRoutes(val route: String) {
     data object SignupScreen : AppRoutes(route = "sign_up")
     data object ResetPinScreen : AppRoutes(route = "reset_pin")
     data object LogoutScreen : AppRoutes(route = "logout")
+
+    // Graph-level route identifiers (NOT screens)
+    data object Auth : AppRoutes("auth")
+    data object Main : AppRoutes("main")
 }
 ```
 
-### Navigation graph (single NavHost for the demo)
+**Key detail:** `Auth` and `Main` are not screens -- they are **graph identifiers** used as the `route` parameter in `navigation()`. They let you say "navigate to the auth graph" or "pop everything up to the main graph".
 
-`MainAppNav()` uses one `NavHost` with `startDestination = login`.
+---
 
-Important best-practice detail that’s implemented:
-- **After login**, navigate to Home using `popUpTo(login) { inclusive = true }`
-  - prevents back-press from returning to Login
-- **After logout**, navigate to Login using `popUpTo(home) { inclusive = true }`
-  - prevents back-press from returning to Home/Profile/Checkout
-
-### Flow diagram
-
-```
-┌───────────────────────────────────────────────────────────────────────────┐
-│                           MULTI-FLOW NAVIGATION                           │
-└───────────────────────────────────────────────────────────────────────────┘
-
-AUTH FLOW                               MAIN FLOW
-─────────                               ─────────
-
-  login  ───────────────►  home  ───────►  checkout  ───────► confirmation
-    │                      │   │                            │
-    │                      │   └────────► profile ──────────┘
-    │                      │
-    │                      └────────► logout  ─────────────► login
-    │
-    ├────────► sign_up ───────────────► login
-    └────────► reset_pin ─────────────► login
-```
-
-### “Modern callback” for destination selection
-
-Your `nestednav` `HomeScreen` uses a more scalable callback:
-
-- Instead of `onNavigate()` (single action),
-- it uses `onNavigate(destination: AppRoutes)` (multiple actions).
-
-This keeps **NavController in the NavGraph** and keeps UI screens decoupled.
-
-### Recommended next step (true nested graphs)
-
-Right now, `nestednav` is “multi-flow” but still a **single NavHost**.
-In larger apps, you typically create **nested graphs**:
+#### 2. MainNav.kt -- The Thin Shell
 
 ```kotlin
-NavHost(navController, startDestination = "auth") {
-    navigation(startDestination = AppRoutes.LoginScreen.route, route = "auth") {
-        composable(AppRoutes.LoginScreen.route) { /* ... */ }
-        composable(AppRoutes.SignupScreen.route) { /* ... */ }
-        composable(AppRoutes.ResetPinScreen.route) { /* ... */ }
-    }
-    navigation(startDestination = AppRoutes.HomeScreen.route, route = "main") {
-        composable(AppRoutes.HomeScreen.route) { /* ... */ }
-        composable(AppRoutes.ProfileScreen.route) { /* ... */ }
-        composable(AppRoutes.CheckoutScreen.route) { /* ... */ }
-        composable(AppRoutes.ConfirmationScreen.route) { /* ... */ }
-        composable(AppRoutes.LogoutScreen.route) { /* ... */ }
+@Composable
+fun MainAppNav(modifier: Modifier = Modifier) {
+    val navController = rememberNavController()
+
+    NavHost(navController, startDestination = AppRoutes.Auth.route) {
+        authGraph(navController)       // <-- extension function (AuthNavGraph.kt)
+        homeNavGraph(navController)    // <-- extension function (HomeNavGraph.kt)
     }
 }
 ```
 
-This makes it easier to:
-- keep Auth + Main flows separate
-- clear a whole flow using `popUpTo("auth")` / `popUpTo("main")`
-- scale to more features
+**What changed:** Previously all 8 `composable()` calls lived in this file. Now it's just 3 lines inside the NavHost -- clean and readable. Each flow is delegated to an extension function in its own file.
+
+---
+
+#### 3. AuthNavGraph.kt -- The Auth Sub-graph
+
+Defined as an **extension function on `NavGraphBuilder`**:
+
+```kotlin
+fun NavGraphBuilder.authGraph(navController: NavController) {
+    navigation(
+        startDestination = AppRoutes.LoginScreen.route,
+        route = AppRoutes.Auth.route     // <-- graph ID = "auth"
+    ) {
+        composable(AppRoutes.LoginScreen.route) {
+            LoginScreen(onNavigate = {
+                navController.navigate(AppRoutes.HomeScreen.route) {
+                    popUpTo(AppRoutes.LoginScreen.route) { inclusive = true }
+                    launchSingleTop = true
+                }
+            })
+        }
+        composable(AppRoutes.SignupScreen.route) { /* -> LoginScreen */ }
+        composable(AppRoutes.ResetPinScreen.route) { /* -> LoginScreen */ }
+    }
+}
+```
+
+---
+
+#### 4. HomeNavGraph.kt -- The Main App Sub-graph
+
+```kotlin
+fun NavGraphBuilder.homeNavGraph(navController: NavController) {
+    navigation(
+        startDestination = AppRoutes.HomeScreen.route,
+        route = AppRoutes.Main.route     // <-- graph ID = "main"
+    ) {
+        composable(AppRoutes.HomeScreen.route) { /* multi-destination callback */ }
+        composable(AppRoutes.CheckoutScreen.route) { /* -> Confirmation */ }
+        composable(AppRoutes.ConfirmationScreen.route) { /* -> Home (with popUpTo) */ }
+        composable(AppRoutes.ProfileScreen.route) { /* -> Home (with popUpTo) */ }
+        composable(AppRoutes.LogoutScreen.route) { /* -> Login (with popUpTo) */ }
+    }
+}
+```
+
+---
+
+### Extension Functions on NavGraphBuilder -- Explained
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│              EXTENSION FUNCTION ON NavGraphBuilder                         │
+└──────────────────────────────────────────────────────────────────────────┘
+
+  SYNTAX:
+  ───────
+  fun NavGraphBuilder.authGraph(navController: NavController)
+       ^                ^               ^
+       |                |               |
+       |                |               └── Parameter: so screens can navigate
+       |                └── Function name: descriptive, like a module name
+       └── Receiver: this function "extends" NavGraphBuilder
+           so you can call it inside NavHost { } like a built-in function
+
+  BEFORE vs AFTER:
+  ────────────────
+  ┌─────────────────────────────────┐     ┌─────────────────────────────────┐
+  │  WITHOUT extension functions    │     │  WITH extension functions       │
+  │                                 │     │                                 │
+  │  NavHost {                      │     │  NavHost {                      │
+  │    composable("login") { }      │     │    authGraph(navController)     │
+  │    composable("signup") { }     │     │    homeNavGraph(navController)  │
+  │    composable("reset") { }      │     │  }                             │
+  │    composable("home") { }       │     │                                 │
+  │    composable("checkout") { }   │     │  Clean! Each flow in its own   │
+  │    composable("confirm") { }    │     │  file.                         │
+  │    composable("profile") { }    │     │                                 │
+  │    composable("logout") { }     │     │                                 │
+  │  }                              │     │                                 │
+  │                                 │     │                                 │
+  │  One huge file = hard to read   │     │                                 │
+  └─────────────────────────────────┘     └─────────────────────────────────┘
+```
+
+---
+
+### The `navigation()` Function -- Explained
+
+```kotlin
+navigation(
+    startDestination = AppRoutes.LoginScreen.route,  // first screen in this group
+    route = AppRoutes.Auth.route                     // name of this group
+)
+```
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│                      HOW navigation() WORKS                               │
+└──────────────────────────────────────────────────────────────────────────┘
+
+  Think of navigation() as creating a "folder" of screens:
+
+  NavHost
+  ├── "auth" (navigation graph)                <-- route = "auth"
+  |   ├── "login"  (startDestination)          <-- shown first when entering "auth"
+  |   ├── "sign_up"
+  |   └── "reset_pin"
+  |
+  └── "main" (navigation graph)                <-- route = "main"
+      ├── "Home"  (startDestination)           <-- shown first when entering "main"
+      ├── "checkout"
+      ├── "confirmation"
+      ├── "profile"
+      └── "logout"
+
+  When you navigate to "auth" -> it opens "login" (the startDestination)
+  When you navigate to "main" -> it opens "Home" (the startDestination)
+```
+
+---
+
+### Screen-to-Screen Flow Diagram
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│                        COMPLETE NAVIGATION FLOW                           │
+└──────────────────────────────────────────────────────────────────────────┘
+
+                          AUTH GRAPH ("auth")
+               ┌─────────────────────────────────────┐
+               │                                     │
+               │    ┌─────────┐                      │
+               │    │  Login  │ <--- startDestination│
+               │    └────┬────┘                      │
+               │         │                           │
+               │    ┌────┴───────────┐               │
+               │    │                │               │
+               │    v                v               │
+               │ ┌────────┐   ┌───────────┐         │
+               │ │ Signup │   │ Reset PIN │         │
+               │ └───┬────┘   └─────┬─────┘         │
+               │     │              │                │
+               │     └──────┬───────┘                │
+               │            │ (back to login)        │
+               │            v                        │
+               └─────────── Login ───────────────────┘
+                              │
+                              │ LOGIN SUCCESS
+                              │ popUpTo("login") { inclusive = true }
+                              │ launchSingleTop = true
+                              v
+                          MAIN GRAPH ("main")
+               ┌─────────────────────────────────────┐
+               │                                     │
+               │    ┌─────────┐                      │
+               │    │  Home   │ <--- startDestination│
+               │    └────┬────┘                      │
+               │         │                           │
+               │    ┌────┼────────────┐              │
+               │    │    │            │              │
+               │    v    v            v              │
+               │ ┌────┐┌───────┐ ┌────────┐         │
+               │ │Prof││Check- │ │ Logout │         │
+               │ │ile ││out    │ │        │         │
+               │ └──┬─┘└───┬───┘ └───┬────┘         │
+               │    │      │         │               │
+               │    │      v         │               │
+               │    │ ┌──────────┐   │               │
+               │    │ │Confirma- │   │               │
+               │    │ │tion      │   │               │
+               │    │ └────┬─────┘   │               │
+               │    │      │         │               │
+               │    └──┬───┘         │               │
+               │       │ (back to    │               │
+               │       v  Home)      │               │
+               │     Home            │               │
+               └─────────────────────┼───────────────┘
+                                     │
+                                     │ LOGOUT
+                                     │ popUpTo("Home") { inclusive = true }
+                                     v
+                                   Login (back to auth)
+```
+
+---
+
+### Back Stack Management with Nested Graphs
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│                    BACK STACK ACROSS FLOWS                                 │
+└──────────────────────────────────────────────────────────────────────────┘
+
+  AFTER LOGIN (popUpTo login, inclusive):
+  ──────────────────────────────────────
+  Before:                After:
+  ┌──────────┐           ┌──────────┐
+  │  Login   │    -->    │  Home    │ <-- only this
+  └──────────┘           └──────────┘
+                         Back press -> exits app (Login is gone!)
+
+  AFTER CHECKOUT -> CONFIRMATION -> HOME (popUpTo Home, inclusive):
+  ──────────────────────────────────────────────────────────────
+  Before:                After:
+  ┌──────────────┐       ┌──────────┐
+  │ Confirmation │       │  Home    │ <-- clean slate
+  ├──────────────┤       └──────────┘
+  │ Checkout     │
+  ├──────────────┤       Stack is clean! No Checkout or
+  │ Home         │       Confirmation left behind.
+  └──────────────┘
+
+  AFTER LOGOUT (popUpTo Home, inclusive):
+  ──────────────────────────────────────
+  Before:                After:
+  ┌──────────┐           ┌──────────┐
+  │ Logout   │    -->    │  Login   │ <-- fresh start
+  ├──────────┤           └──────────┘
+  │ Home     │
+  └──────────┘           Back press -> exits app (Home is gone!)
+```
+
+---
+
+### Key Concept: `launchSingleTop = true`
+
+Prevents **duplicate screens** on the back stack:
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│                      launchSingleTop EXPLAINED                            │
+└──────────────────────────────────────────────────────────────────────────┘
+
+  Without launchSingleTop:          With launchSingleTop = true:
+  ─────────────────────────         ──────────────────────────────
+
+  User taps "Home" twice:           User taps "Home" twice:
+
+  ┌──────────┐                      ┌──────────┐
+  │  Home    │ <-- duplicate!       │  Home    │ <-- reused, no duplicate
+  ├──────────┤                      └──────────┘
+  │  Home    │
+  └──────────┘
+```
+
+---
+
+### Multi-destination Callback Pattern
+
+`HomeScreen` has multiple buttons, each going to a different screen. The callback accepts a **destination** parameter:
+
+```kotlin
+// In HomeScreen.kt -- UI only, no NavController
+@Composable
+fun HomeScreen(onNavigate: (destination: AppRoutes) -> Unit = {}) {
+    Button(onClick = { onNavigate(AppRoutes.CheckoutScreen) }) { Text("checkout") }
+    Button(onClick = { onNavigate(AppRoutes.ProfileScreen) }) { Text("profile") }
+    Button(onClick = { onNavigate(AppRoutes.LogoutScreen) }) { Text("logout") }
+}
+
+// In HomeNavGraph.kt -- the NavGraph decides what each destination does
+HomeScreen(onNavigate = { destination ->
+    when (destination) {
+        AppRoutes.CheckoutScreen -> navController.navigate(AppRoutes.CheckoutScreen.route)
+        AppRoutes.ProfileScreen  -> navController.navigate(AppRoutes.ProfileScreen.route)
+        AppRoutes.LogoutScreen   -> navController.navigate(AppRoutes.LogoutScreen.route)
+        else -> Unit
+    }
+})
+```
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│              MULTI-DESTINATION CALLBACK PATTERN                           │
+└──────────────────────────────────────────────────────────────────────────┘
+
+  ┌──────────────────────────────────────────────┐
+  │  HomeScreen  (UI only -- no NavController!)  │
+  │                                              │
+  │  ┌────────────┐  ┌─────────┐  ┌──────────┐  │
+  │  │ Checkout   │  │ Profile │  │ Logout   │  │
+  │  │ Button     │  │ Button  │  │ Button   │  │
+  │  └─────┬──────┘  └────┬────┘  └─────┬────┘  │
+  │        │              │             │        │
+  └────────┼──────────────┼─────────────┼────────┘
+           │              │             │
+           v              v             v
+     onNavigate(    onNavigate(   onNavigate(
+      Checkout)      Profile)      Logout)
+           │              │             │
+           └──────────────┼─────────────┘
+                          │
+                          v
+               ┌──────────────────────┐
+               │  HomeNavGraph.kt     │
+               │  when(destination) { │
+               │    Checkout -> nav() │
+               │    Profile  -> nav() │
+               │    Logout   -> nav() │
+               │  }                   │
+               └──────────────────────┘
+```
 
 ---
 
@@ -564,12 +697,12 @@ This makes it easier to:
 │                   STRING LITERALS vs SEALED CLASS                    │
 └─────────────────────────────────────────────────────────────────────┘
 
-  ❌ STRING LITERALS (error-prone):
+  STRING LITERALS (error-prone):
   ─────────────────────────────────
   navController.navigate("profil/John/95")  // Typo: "profil"
                                             // Compiles but crashes at runtime!
 
-  ✅ SEALED CLASS (type-safe):
+  SEALED CLASS (type-safe):
   ─────────────────────────────────
   navController.navigate(Route.Profile.createRoute("John", "95"))
                          // Typo would be caught by compiler!
@@ -602,7 +735,7 @@ fun HomeScreen(onNavigate: (String, String) -> Unit = { _, _ -> }) {
     // When name or score changes, only affected UI recomposes
     TextField(
         value = name,
-        onValueChange = { name = it }  // Updates state → triggers recomposition
+        onValueChange = { name = it }  // Updates state -> triggers recomposition
     )
 }
 ```
@@ -622,7 +755,7 @@ fun HomeScreen(onNavigate: (String, String) -> Unit = { _, _ -> }) {
   │   │  (mutableState) │      │  (mutableState) │              │
   │   └────────┬────────┘      └────────┬────────┘              │
   │            │                        │                        │
-  │            ▼                        ▼                        │
+  │            v                        v                        │
   │   ┌─────────────────────────────────────────────────────┐   │
   │   │              TextField Components                    │   │
   │   │                                                      │   │
@@ -630,16 +763,15 @@ fun HomeScreen(onNavigate: (String, String) -> Unit = { _, _ -> }) {
   │   │   onValueChange = {}    onValueChange = {}          │   │
   │   └─────────────────────────────────────────────────────┘   │
   │                              │                               │
-  │                              ▼                               │
+  │                              v                               │
   │   ┌─────────────────────────────────────────────────────┐   │
   │   │                    Button                            │   │
-  │   │                                                      │   │
   │   │   onClick = { onNavigate(name, score) }             │   │
   │   └─────────────────────────────────────────────────────┘   │
   │                              │                               │
   └──────────────────────────────┼───────────────────────────────┘
                                  │
-                                 ▼  Callback to parent (NavGraph)
+                                 v  Callback to parent (NavGraph)
                      ┌─────────────────────────────┐
                      │ navController.navigate(     │
                      │   Route.Profile.createRoute │
@@ -665,29 +797,29 @@ fun HomeScreen(onNavigate: (String, String) -> Unit = { _, _ -> }) {
   ┌───────────────────────┐
   │      HomeScreen       │
   │  ┌─────────────────┐  │
-  │  │ TextField: name │──┼──► name = "John"
+  │  │ TextField: name │──┼──> name = "John"
   │  └─────────────────┘  │
   │  ┌─────────────────┐  │
-  │  │ TextField: score│──┼──► score = "95"
+  │  │ TextField: score│──┼──> score = "95"
   │  └─────────────────┘  │
   │  ┌─────────────────┐  │
   │  │  Button: Click  │──┼──┐
   │  └─────────────────┘  │  │
   └───────────────────────┘  │
                              │
-                             ▼
+                             v
               ┌──────────────────────────────┐
               │    onNavigate("John", "95")  │
               └──────────────┬───────────────┘
                              │
-                             ▼
+                             v
               ┌──────────────────────────────┐
               │  Route.Profile.createRoute(  │
               │    "John", "95"              │
-              │  ) → "profile/John/95"       │
+              │  ) -> "profile/John/95"      │
               └──────────────┬───────────────┘
                              │
-                             ▼
+                             v
               ┌──────────────────────────────┐
               │  Route Matching:             │
               │  "profile/{name}/{score}"    │
@@ -697,7 +829,7 @@ fun HomeScreen(onNavigate: (String, String) -> Unit = { _, _ -> }) {
               │    ARG_SCORE = "95"          │
               └──────────────┬───────────────┘
                              │
-                             ▼
+                             v
               ┌───────────────────────┐
               │     ProfileScreen     │
               │  ┌─────────────────┐  │
@@ -709,32 +841,6 @@ fun HomeScreen(onNavigate: (String, String) -> Unit = { _, _ -> }) {
               └───────────────────────┘
 ```
 
-### Back Stack Visualization
-
-```
-                        BACK STACK
-                    ─────────────────
-
-  Initial State:        After Navigation:
-  ┌─────────────┐       ┌─────────────┐
-  │             │       │ Profile     │ ◄── Current
-  │             │       │ Screen      │
-  │             │       ├─────────────┤
-  │             │       │ Home        │
-  │   Home      │ ───►  │ Screen      │
-  │   Screen    │       │             │
-  │             │       │             │
-  └─────────────┘       └─────────────┘
-
-                        Back Press:
-                        ┌─────────────┐
-                        │             │
-                        │   Home      │ ◄── Current
-                        │   Screen    │     (Profile popped)
-                        │             │
-                        └─────────────┘
-```
-
 ---
 
 ## Best Practices
@@ -742,57 +848,41 @@ fun HomeScreen(onNavigate: (String, String) -> Unit = { _, _ -> }) {
 ### 1. Use Sealed Classes for Type-Safe Routes
 
 ```kotlin
-// ✅ BEST: Sealed class with helper functions
 sealed class Route(val route: String) {
     data object Home : Route(route = "home")
 
     data object Profile : Route(route = "profile/{name}/{score}") {
         const val ARG_NAME = "name"
         const val ARG_SCORE = "score"
-
         fun createRoute(name: String, score: String) = "profile/$name/$score"
     }
 }
-
-// Usage: Route.Profile.createRoute("John", "95")
 ```
 
 ### 2. Use Callback Patterns for Navigation
 
 ```kotlin
-// ✅ GOOD: Pass navigation as callback (decoupled)
-@Composable
-fun ScreenA(onNavigate: () -> Unit = {}) {
-    Button(onClick = { onNavigate() }) { Text("Next") }
-}
+// GOOD: Decoupled
+fun ScreenA(onNavigate: () -> Unit = {}) { }
 
-// ❌ AVOID: Passing NavController directly (tight coupling)
-@Composable
-fun ScreenA(navController: NavController) {
-    Button(onClick = { navController.navigate("B") }) { Text("Next") }
-}
+// AVOID: Tight coupling
+fun ScreenA(navController: NavController) { }
 ```
 
 ### 3. Handle Nullable Arguments Safely
 
 ```kotlin
-// ✅ Safe handling with Elvis operator
 ProfileScreen(
-    name = backStackEntry.arguments?.getString(Route.Profile.ARG_NAME)
-        ?: "Unknown",
-    score = backStackEntry.arguments?.getString(Route.Profile.ARG_SCORE)
-        ?: "0"
+    name = backStackEntry.arguments?.getString(Route.Profile.ARG_NAME) ?: "Unknown",
+    score = backStackEntry.arguments?.getString(Route.Profile.ARG_SCORE) ?: "0"
 )
 ```
 
 ### 4. Use Default Parameter Values for Previews
 
 ```kotlin
-// ✅ Allows preview and testing without navigation setup
 @Composable
-fun HomeScreen(onNavigate: (String, String) -> Unit = { _, _ -> }) {
-    // Preview works because default lambda does nothing
-}
+fun HomeScreen(onNavigate: (String, String) -> Unit = { _, _ -> }) { }
 
 @Preview
 @Composable
@@ -801,14 +891,22 @@ fun HomeScreenPreview() {
 }
 ```
 
-### 5. Use popUpTo for Circular Navigation
+### 5. Use popUpTo + launchSingleTop for Flow Transitions
 
 ```kotlin
-// ✅ Prevents infinite back stack growth
-navController.navigate(Route.ScreenA.route) {
-    popUpTo(Route.ScreenA.route) {
-        inclusive = true  // Remove existing ScreenA before adding new one
-    }
+// After login: clear auth stack
+navController.navigate(AppRoutes.HomeScreen.route) {
+    popUpTo(AppRoutes.LoginScreen.route) { inclusive = true }
+    launchSingleTop = true
+}
+```
+
+### 6. Split Graphs with Extension Functions
+
+```kotlin
+// Each flow in its own file
+fun NavGraphBuilder.authGraph(navController: NavController) {
+    navigation(startDestination = "login", route = "auth") { /* ... */ }
 }
 ```
 
@@ -821,12 +919,10 @@ navController.navigate(Route.ScreenA.route) {
 ```kotlin
 data object Search : Route(route = "search?query={query}") {
     const val ARG_QUERY = "query"
-
     fun createRoute(query: String? = null) =
         if (query != null) "search?query=$query" else "search"
 }
 
-// In NavHost:
 composable(
     route = Route.Search.route,
     arguments = listOf(
@@ -852,26 +948,6 @@ composable(
 ) { }
 ```
 
-### Nested Navigation
-
-```kotlin
-sealed class MainRoute(val route: String) {
-    data object Main : MainRoute("main")
-    data object Auth : MainRoute("auth")
-}
-
-NavHost(navController, startDestination = MainRoute.Main.route) {
-    navigation(startDestination = Route.Home.route, route = MainRoute.Main.route) {
-        composable(Route.Home.route) { HomeScreen() }
-        composable(Route.Settings.route) { SettingsScreen() }
-    }
-    navigation(startDestination = Route.Login.route, route = MainRoute.Auth.route) {
-        composable(Route.Login.route) { LoginScreen() }
-        composable(Route.Register.route) { RegisterScreen() }
-    }
-}
-```
-
 ---
 
 ## Quick Reference
@@ -883,42 +959,52 @@ NavHost(navController, startDestination = MainRoute.Main.route) {
 │                    NAVIGATION SETUP CHECKLIST                    │
 └─────────────────────────────────────────────────────────────────┘
 
-  □ Step 1: Define sealed class for routes
-  □ Step 2: Create NavController with rememberNavController()
-  □ Step 3: Setup NavHost with startDestination
-  □ Step 4: Define composable() for each screen
-  □ Step 5: Use callbacks (onNavigate) in screens
-  □ Step 6: Add arguments with navArgument() if needed
-  □ Step 7: Use popUpTo for circular navigation flows
+  Step 1: Define sealed class for routes
+  Step 2: Create NavController with rememberNavController()
+  Step 3: Setup NavHost with startDestination
+  Step 4: Define composable() for each screen
+  Step 5: Use callbacks (onNavigate) in screens
+  Step 6: Add arguments with navArgument() if needed
+  Step 7: Use popUpTo for flow transitions
+  Step 8: Split into extension functions when graph grows
 ```
 
 ### Summary Table
 
-| Concept                | Purpose                     | Example                                                  |
-| ---------------------- | --------------------------- | -------------------------------------------------------- |
-| **Sealed Class Route** | Type-safe route definitions | `sealed class Route(val route: String)`                  |
-| **NavController**      | Manages navigation state    | `rememberNavController()`                                |
-| **NavHost**            | Hosts navigation graph      | `NavHost(navController, startDestination)`               |
-| **composable()**       | Defines screen destination  | `composable(Route.Home.route) { }`                       |
-| **navArgument**        | Defines route parameter     | `navArgument(ARG_NAME) { type = NavType.StringType }`    |
-| **navigate()**         | Triggers navigation         | `navController.navigate(Route.Profile.createRoute(...))` |
-| **popUpTo**            | Clears back stack           | `popUpTo(Route.Home.route) { inclusive = true }`         |
-| **Callback Pattern**   | Decouples screens from nav  | `onNavigate: () -> Unit = {}`                            |
+| Concept                      | Purpose                         | Example                                                  |
+| ---------------------------- | ------------------------------- | -------------------------------------------------------- |
+| **Sealed Class Route**       | Type-safe route definitions     | `sealed class Route(val route: String)`                  |
+| **NavController**            | Manages navigation state        | `rememberNavController()`                                |
+| **NavHost**                  | Hosts navigation graph          | `NavHost(navController, startDestination)`               |
+| **composable()**             | Defines screen destination      | `composable(Route.Home.route) { }`                       |
+| **navigation()**             | Creates a nested sub-graph      | `navigation(startDest, route) { composable()... }`       |
+| **NavGraphBuilder extension**| Splits graph into separate file | `fun NavGraphBuilder.authGraph(nav) { navigation{} }`   |
+| **navArgument**              | Defines route parameter         | `navArgument(ARG_NAME) { type = NavType.StringType }`    |
+| **navigate()**               | Triggers navigation             | `navController.navigate(Route.Profile.createRoute(...))` |
+| **popUpTo**                  | Clears back stack               | `popUpTo(Route.Home.route) { inclusive = true }`         |
+| **launchSingleTop**          | Prevents duplicate destinations | `launchSingleTop = true`                                 |
+| **Callback Pattern**         | Decouples screens from nav      | `onNavigate: () -> Unit = {}`                            |
 
 ---
 
 ## Glossary
 
-| Term               | Definition                                             |
-| ------------------ | ------------------------------------------------------ |
-| **Back Stack**     | Stack of screens the user has navigated through        |
-| **Composable**     | A function that defines UI in Jetpack Compose          |
-| **NavController**  | Object that manages app navigation                     |
-| **NavHost**        | Container that displays current navigation destination |
-| **Route**          | String path that identifies a navigation destination   |
-| **Recomposition**  | Process of re-executing composables when state changes |
-| **State Hoisting** | Moving state up to a common ancestor composable        |
-| **popUpTo**        | Navigation option to remove screens from back stack    |
+| Term                           | Definition                                                            |
+| ------------------------------ | --------------------------------------------------------------------- |
+| **Back Stack**                 | Stack of screens the user has navigated through                       |
+| **Composable**                 | A function that defines UI in Jetpack Compose                         |
+| **Extension Function**         | A function added to an existing class without modifying it            |
+| **NavController**              | Object that manages app navigation                                    |
+| **NavGraphBuilder**            | Builder DSL for constructing a navigation graph                       |
+| **NavHost**                    | Container that displays current navigation destination                |
+| **Nested Graph**               | A group of related screens under one parent route                     |
+| **Route**                      | String path that identifies a navigation destination                  |
+| **Recomposition**              | Process of re-executing composables when state changes                |
+| **Sealed Class**               | A class that restricts its subclasses to a known set                  |
+| **State Hoisting**             | Moving state up to a common ancestor composable                       |
+| **popUpTo**                    | Navigation option to remove screens from back stack                   |
+| **launchSingleTop**            | Prevents creating a new instance if already at the top of stack       |
+| **startDestination**           | The first screen shown when a graph or sub-graph is entered           |
 
 ---
 
@@ -926,9 +1012,10 @@ NavHost(navController, startDestination = MainRoute.Main.route) {
 
 - [Official Navigation Compose Guide](https://developer.android.com/jetpack/compose/navigation)
 - [Navigation Arguments Documentation](https://developer.android.com/guide/navigation/navigation-pass-data)
+- [Nested Navigation Graphs](https://developer.android.com/guide/navigation/navigation-nested-graphs)
 - [State and Jetpack Compose](https://developer.android.com/jetpack/compose/state)
 - [Material 3 Design](https://m3.material.io/)
 
 ---
 
-_Last Updated: January 2026_
+*Last Updated: January 2026*
